@@ -33,6 +33,7 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
 
     labels = []
     sample_metrics = []  # List of tuples (TP, confs, pred)
+    no_results_flag = False
     for batch_i, (_, imgs, targets) in enumerate(tqdm.tqdm(dataloader, desc="Detecting objects")):
 
         # Extract labels
@@ -45,15 +46,36 @@ def evaluate(model, path, iou_thres, conf_thres, nms_thres, img_size, batch_size
 
         with torch.no_grad():
             outputs = model(imgs)
+            # print(outputs)
             outputs = non_max_suppression(outputs, conf_thres=conf_thres, nms_thres=nms_thres)
-
+            print('after filter: ', outputs)
+            cnt = 0
+            for o in outputs:
+                if o is None:
+                    cnt+=1
+            if cnt == len(outputs):
+                no_results_flag = True
+            elif no_results_flag:
+                no_results_flag = False
         sample_metrics += get_batch_statistics(outputs, targets, iou_threshold=iou_thres)
 
-    # Concatenate sample statistics
-    true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
-    precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
+    
+    # cnt = 0
+    print(sample_metrics)
+    if no_results_flag:
+        precision = np.zeros((batch_size),dtype=float)
+        recall = np.zeros((batch_size),dtype=float)
+        AP = np.zeros((batch_size),dtype=float)
+        ap_class = np.zeros((batch_size),dtype=float)
+        f1 = np.zeros((batch_size),dtype=float)
+        return precision, recall, AP, f1, ap_class, no_results_flag
+    else:
+    
+        # Concatenate sample statistics
+        true_positives, pred_scores, pred_labels = [np.concatenate(x, 0) for x in list(zip(*sample_metrics))]
+        precision, recall, AP, f1, ap_class = ap_per_class(true_positives, pred_scores, pred_labels, labels)
 
-    return precision, recall, AP, f1, ap_class
+        return precision, recall, AP, f1, ap_class, no_results_flag
 
 
 if __name__ == "__main__":
@@ -88,7 +110,7 @@ if __name__ == "__main__":
 
     print("Compute mAP...")
 
-    precision, recall, AP, f1, ap_class = evaluate(
+    precision, recall, AP, f1, ap_class, no_results_flag = evaluate(
         model,
         path=valid_path,
         iou_thres=opt.iou_thres,

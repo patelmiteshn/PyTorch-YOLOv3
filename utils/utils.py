@@ -178,6 +178,9 @@ def get_batch_statistics(outputs, targets, iou_threshold):
                     true_positives[pred_i] = 1
                     detected_boxes += [box_index]
         batch_metrics.append([true_positives, pred_scores, pred_labels])
+    # if not batch_metrics:
+    #     # print("batch matrix is empty")
+    #     batch_metrics.append([0,0,0])
     return batch_metrics
 
 

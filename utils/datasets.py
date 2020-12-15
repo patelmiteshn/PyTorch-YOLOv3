@@ -3,6 +3,7 @@ import random
 import os
 import sys
 import numpy as np
+import re
 from PIL import Image
 import torch
 import torch.nn.functional as F
@@ -61,10 +62,33 @@ class ListDataset(Dataset):
         with open(list_path, "r") as file:
             self.img_files = file.readlines()
 
-        self.label_files = [
-            path.replace("images", "labels").replace(".png", ".txt").replace(".jpg", ".txt")
-            for path in self.img_files
-        ]
+        # self.label_files = [
+        #     path.replace("images", "labels").replace(".png", ".txt").replace(".jpg", ".txt")
+        #     for path in self.img_files
+        # ]
+        self.label_files= []
+        for path in self.img_files:
+            # path.replace("images", "labels")
+            temp = re.split('[.]',path)
+            npath = ""
+            temp[-1] = 'txt'
+            for t in temp:
+                if t == 'txt':
+                    npath +=t
+                else:
+                    npath +=t + '.'
+            temp = re.split('[/]',npath)
+            npath = ""
+            for idx,t in enumerate(temp):
+                if t == 'images':
+                    npath +="labels" + '/'
+                elif idx == len(temp)-1:
+                    npath += t
+                else:
+                    npath += t +"/"
+
+            self.label_files.append(npath)
+
         self.img_size = img_size
         self.max_objects = 100
         self.augment = augment
@@ -123,6 +147,11 @@ class ListDataset(Dataset):
 
             targets = torch.zeros((len(boxes), 6))
             targets[:, 1:] = boxes
+        else:
+            print('#### PATH DOES NOT EXIST ######::: ',label_path)
+        # if  targets is None:
+        #     print(label_path)
+        #     print("target is none")
 
         # Apply augmentations
         if self.augment:
